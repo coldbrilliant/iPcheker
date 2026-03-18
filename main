@@ -1,0 +1,117 @@
+import tkinter as tk
+from urllib.request import urlopen
+import json
+import ipaddress
+
+
+BG = "#0b0f1a"
+ACCENT = "#00ffcc"
+TEXT = "#e6edf3"
+INPUT_BG = "#0b1220"
+BTN_BG = "#111827"
+
+
+def validate_ip(ip):
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except:
+        return False
+
+
+def set_result(text):
+    output.config(state="normal")
+    output.delete("1.0", tk.END)
+    output.insert(tk.END, text)
+    output.config(state="disabled")
+
+
+def paste_ip():
+    try:
+        text = root.clipboard_get().strip()
+        entry.delete(0, tk.END)
+        entry.insert(0, text)
+        status.set("IP pasted")
+    except:
+        status.set("Clipboard empty")
+
+
+def copy_result():
+    text = output.get("1.0", tk.END).strip()
+    if not text:
+        return
+
+    root.clipboard_clear()
+    root.clipboard_append(text)
+    root.update()
+    status.set("Copied")
+
+
+def lookup():
+    ip = entry.get().strip()
+
+    if not validate_ip(ip):
+        status.set("Invalid IP")
+        return
+
+    status.set("Querying...")
+
+    try:
+        url = f"https://ipwho.is/{ip}"
+        data = json.loads(urlopen(url).read().decode())
+
+        if not data.get("success"):
+            status.set("Lookup failed")
+            return
+
+        result = (
+            f"[ IP ]       {data.get('ip')}\n"
+            f"[ COUNTRY ]  {data.get('country')}\n"
+            f"[ REGION ]   {data.get('region')}\n"
+            f"[ CITY ]     {data.get('city')}\n"
+            f"[ ISP ]      {data.get('connection', {}).get('isp')}\n"
+            f"[ ORG ]      {data.get('connection', {}).get('org')}\n"
+            f"[ ASN ]      {data.get('connection', {}).get('asn')}\n"
+            f"[ TIMEZONE ] {data.get('timezone', {}).get('id')}\n"
+            f"[ TIME ]     {data.get('timezone', {}).get('current_time')}\n"
+            f"[ LAT/LON ]  {data.get('latitude')}, {data.get('longitude')}\n"
+        )
+
+        set_result(result)
+        status.set("Done")
+
+    except:
+        status.set("Network error")
+
+
+# UI
+root = tk.Tk()
+root.title("ip_lookup tool")
+root.geometry("720x500")
+root.configure(bg=BG)
+root.resizable(False, False)
+
+title = tk.Label(root, text="IP LOOKUP TERMINAL", font=("Consolas", 16, "bold"), fg=ACCENT, bg=BG)
+title.pack(pady=10)
+
+entry = tk.Entry(root, font=("Consolas", 12), bg=INPUT_BG, fg=TEXT, insertbackground=TEXT, relief="flat", bd=8)
+entry.pack(fill="x", padx=20, pady=5)
+
+btn_frame = tk.Frame(root, bg=BG)
+btn_frame.pack(pady=5)
+
+tk.Button(btn_frame, text="PASTE", command=paste_ip, bg=BTN_BG, fg=TEXT, relief="flat", width=10).pack(side="left", padx=5)
+tk.Button(btn_frame, text="LOOKUP", command=lookup, bg=BTN_BG, fg=TEXT, relief="flat", width=10).pack(side="left", padx=5)
+tk.Button(btn_frame, text="COPY", command=copy_result, bg=BTN_BG, fg=TEXT, relief="flat", width=10).pack(side="left", padx=5)
+
+output = tk.Text(root, font=("Consolas", 11), bg="#020617", fg="#00ffcc", relief="flat", bd=10, height=15, state="disabled")
+output.pack(fill="both", expand=True, padx=20, pady=10)
+
+status = tk.StringVar(value="Ready")
+status_label = tk.Label(root, textvariable=status, font=("Consolas", 9), fg="#64748b", bg=BG)
+status_label.pack(anchor="w", padx=20)
+
+corner = tk.Label(root, text="coldbrilliant", font=("Consolas", 9), fg="#1e293b", bg=BG)
+corner.place(relx=0.98, y=10, anchor="ne")
+
+root.mainloop()
